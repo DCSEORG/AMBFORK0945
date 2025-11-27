@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Expense Management</title>
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-content">
+            <h1 class="site-title">Expense Management System</h1>
+            <nav class="main-nav">
+                <a href="/Index" class="nav-link">Expenses</a>
+                <a href="/AddExpense" class="nav-link">Add Expense</a>
+                <a href="/Approve" class="nav-link">Approve</a>
+                <a href="/Chat" class="nav-link">Chat Assistant</a>
+                <a href="/swagger" class="nav-link" target="_blank">API Docs</a>
+            </nav>
+        </div>
+        @if (ViewData["ErrorMessage"] != null)
+        {
+            <div class="error-banner">
+                <strong>⚠️ Error:</strong> @ViewData["ErrorMessage"]
+            </div>
+        }
+    </header>
+
+    <main class="main-content">
+        @RenderBody()
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; @DateTime.Now.Year - Expense Management System - Modern Azure App</p>
+    </footer>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

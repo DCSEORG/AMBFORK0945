@@ -1,0 +1,192 @@
+@page
+@model ExpenseManagement.Pages.ChatModel
+@{
+    ViewData["Title"] = "Chat Assistant";
+}
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">💬 Expense Assistant</h2>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-messages" id="chatMessages">
+            <div class="chat-message assistant">
+                <p>Hello! I'm your Expense Management Assistant. I can help you:</p>
+                <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                    <li>View and search expenses</li>
+                    <li>Check pending approvals</li>
+                    <li>Create new expenses</li>
+                    <li>Approve or reject expenses (Manager)</li>
+                    <li>Get spending summaries</li>
+                </ul>
+                <p style="margin-top: 0.5rem;">What would you like to do?</p>
+            </div>
+        </div>
+        
+        <div class="chat-input-container">
+            <input type="text" id="chatInput" class="form-control chat-input" 
+                   placeholder="Type your message..." 
+                   onkeypress="if(event.key==='Enter')sendMessage()" />
+            <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const conversationHistory = [];
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatMessage(text) {
+            // Escape HTML first for security
+            let escaped = escapeHtml(text);
+            
+            // Convert markdown-style formatting
+            // Bold: **text** -> <strong>text</strong>
+            escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            
+            // Process lines for lists
+            const lines = escaped.split('\n');
+            let result = [];
+            let inOrderedList = false;
+            let inUnorderedList = false;
+            
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                
+                // Check for numbered list (1. 2. etc.)
+                if (/^\d+\.\s/.test(trimmedLine)) {
+                    if (!inOrderedList) {
+                        if (inUnorderedList) {
+                            result.push('</ul>');
+                            inUnorderedList = false;
+                        }
+                        result.push('<ol>');
+                        inOrderedList = true;
+                    }
+                    result.push('<li>' + trimmedLine.replace(/^\d+\.\s/, '') + '</li>');
+                }
+                // Check for bullet list (- or *)
+                else if (/^[-*]\s/.test(trimmedLine)) {
+                    if (!inUnorderedList) {
+                        if (inOrderedList) {
+                            result.push('</ol>');
+                            inOrderedList = false;
+                        }
+                        result.push('<ul>');
+                        inUnorderedList = true;
+                    }
+                    result.push('<li>' + trimmedLine.replace(/^[-*]\s/, '') + '</li>');
+                }
+                else {
+                    // Close any open lists
+                    if (inOrderedList) {
+                        result.push('</ol>');
+                        inOrderedList = false;
+                    }
+                    if (inUnorderedList) {
+                        result.push('</ul>');
+                        inUnorderedList = false;
+                    }
+                    // Add line break for non-list content
+                    if (trimmedLine) {
+                        result.push(trimmedLine + '<br>');
+                    } else if (result.length > 0) {
+                        result.push('<br>');
+                    }
+                }
+            }
+            
+            // Close any remaining lists
+            if (inOrderedList) result.push('</ol>');
+            if (inUnorderedList) result.push('</ul>');
+            
+            return result.join('');
+        }
+
+        function addMessage(content, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${isUser ? 'user' : 'assistant'}`;
+            
+            if (isUser) {
+                messageDiv.textContent = content;
+            } else {
+                messageDiv.innerHTML = formatMessage(content);
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addLoadingMessage() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'chat-message assistant loading';
+            loadingDiv.id = 'loadingMessage';
+            loadingDiv.innerHTML = '<div class="loading">Thinking...</div>';
+            chatMessages.appendChild(loadingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function removeLoadingMessage() {
+            const loadingDiv = document.getElementById('loadingMessage');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+        }
+
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, true);
+            chatInput.value = '';
+            chatInput.disabled = true;
+
+            // Add to history
+            conversationHistory.push({ role: 'user', content: message });
+
+            addLoadingMessage();
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        history: conversationHistory.slice(-10) // Keep last 10 messages for context
+                    })
+                });
+
+                const data = await response.json();
+                removeLoadingMessage();
+
+                if (data.success || data.message) {
+                    addMessage(data.message, false);
+                    conversationHistory.push({ role: 'assistant', content: data.message });
+                } else {
+                    addMessage('Sorry, I encountered an error. Please try again.', false);
+                }
+            } catch (error) {
+                removeLoadingMessage();
+                addMessage('Sorry, I could not connect to the server. Please try again later.', false);
+                console.error('Chat error:', error);
+            }
+
+            chatInput.disabled = false;
+            chatInput.focus();
+        }
+
+        // Focus input on load
+        chatInput.focus();
+    </script>
+}
