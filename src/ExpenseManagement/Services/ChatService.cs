@@ -352,7 +352,7 @@ Always be helpful and provide clear, concise responses. If a user wants to perfo
                         UserId = root.GetProperty("userId").GetInt32(),
                         CategoryId = root.GetProperty("categoryId").GetInt32(),
                         Amount = root.GetProperty("amount").GetDecimal(),
-                        ExpenseDate = DateTime.Parse(root.GetProperty("expenseDate").GetString()!),
+                        ExpenseDate = DateTime.ParseExact(root.GetProperty("expenseDate").GetString()!, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
                         Description = root.GetProperty("description").GetString()
                     };
                     var (expenseId, createError) = await _expenseService.CreateExpenseAsync(createRequest);
